@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 실시간 틀린 그림 찾기 게임</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+        }
+        /* 이미지 위 클릭 마커 스타일 */
+        .click-marker {
+            position: absolute;
+            width: 32px;
+            height: 32px;
+            border: 3px solid #ef4444;
+            border-radius: 50%;
+            background-color: rgba(239, 68, 68, 0.2);
+            transform: translate(-50%, -50%);
+            animation: pulse 1s infinite;
+            pointer-events: none;
+        }
+        @keyframes pulse {
+            0% { transform: translate(-50%, -50%) scale(1); }
+            50% { transform: translate(-50%, -50%) scale(1.1); border-color: #f97316; }
+            100% { transform: translate(-50%, -50%) scale(1); }
+        }
+    </style>
+</head>
+<body class="p-3 sm:p-6 text-slate-800">
+
+    <div class="max-w-6xl mx-auto">
+        <header class="text-center my-6 sm:my-8 animate__animated animate__fadeInDown">
+            <span class="bg-indigo-600 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider shadow">AI Student Project</span>
+            <h1 class="text-3xl sm:text-4xl font-black mt-2 text-indigo-900 tracking-tight">🤖 AI 생성 틀린 그림 찾기</h1>
+            <p class="text-sm sm:text-base text-slate-600 mt-2">AI가 실시간으로 생성한 두 이미지에서 서로 다른 곳 3군데를 찾아보세요!</p>
+        </header>
+
+        <div id="progressBarContainer" class="hidden mb-6 bg-white rounded-xl p-4 shadow-sm flex justify-between items-center animate__animated animate__fadeIn">
+            <div class="flex items-center space-x-2">
+                <span id="gameStatusBadge" class="bg-indigo-100 text-indigo-800 text-xs font-bold px-2.5 py-1 rounded">게임 진행 중</span>
+                <span id="roundBadge" class="bg-amber-100 text-amber-800 text-xs font-bold px-2.5 py-1 rounded">1 / 3 라운드</span>
+            </div>
+            <div class="text-xs sm:text-sm font-bold text-indigo-600" id="roundStatusText">남은 틀린 그림: 3개</div>
+        </div>
+
+        <section id="setupContainer" class="max-w-xl mx-auto bg-white p-6 rounded-2xl shadow-xl border border-slate-100 mb-6 animate__animated animate__zoomIn">
+            <h2 class="text-xl font-bold mb-4 flex items-center gap-2 text-indigo-950">
+                <span class="flex items-center justify-center w-6 h-6 rounded-full bg
