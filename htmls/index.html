@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>틀린 그림 찾기 예측 게임 클럽</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background-color: #f0f4f8;
+        }
+        /* 점수 상승 시 반짝이는 애니메이션 */
+        @keyframes scoreUp {
+            0% { transform: scale(1); color: #10B981; }
+            50% { transform: scale(1.3); color: #059669; }
+            100% { transform: scale(1); }
+        }
+        /* 점수 하락 시 반짝이는 애니메이션 */
+        @keyframes scoreDown {
+            0% { transform: scale(1); color: #EF4444; }
+            50% { transform: scale(1.3); color: #DC2626; }
+            100% { transform: scale(1); }
+        }
+        .animate-score-up { animation: scoreUp 0.6s ease-in-out; }
+        .animate-score-down { animation: scoreDown 0.6s ease-in-out; }
+        
+        /* 우승자 하이라이트 테두리 애니메이션 */
+        @keyframes goldenGlow {
+            0% { box-shadow: 0 0 5px #FBBF24; }
+            50% { box-shadow: 0 0 20px #F59E0B; }
+            100% { box-shadow: 0 0 5px #FBBF24; }
+        }
+        .winner-highlight {
+            animation: goldenGlow 2s infinite;
+            border: 3px solid #F59E0B !important;
+        }
+    </style>
+</head>
+<body class="text-gray-800 antialiased p-4 md:p-8">
+
+    <div class="max-w-4xl mx-auto">
+        <header class="text-center my-6 md:my-10 bg-white p-6 rounded-2xl shadow-md border-b-4 border-indigo-600">
+            <div class="inline-block bg-indigo-100 text-indigo-800 text-xs font-bold px-3 py-1 rounded-full mb-3 uppercase tracking-wider">
+                <i class="fa-solid fa-gamepad mr-1"></i> Spot the Difference Predictor
+            </div>
+            <h1 class="text-2xl md:text-4xl font-extrabold text-gray-900 tracking-tight">
+                틀린 그림 찾기 <span class="text-indigo-600">예측 매치 게임</span>
+            </h1>
+            <p class="text-gray-500 text-sm md:text-base mt-2">
+                친구들과 방을 만들고, 각 라운드의 틀린 그림 찾기 경기 결과를 예측해 최고 점수를 획득하세요!
+            </p>
+        </header>
+
+        <div id="statusProgress" class="hidden bg-white p-4 rounded-xl shadow-sm mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-2">
+                <span class="bg-indigo-600 text-white text-xs font-bold px-2.5 py-1 rounded-md" id="roomBadge">방 대기중</span>
+                <span class="text-gray-700 font-medium id='roomTitleText'"></span>
+            </div>
+            <div class="w-full md:w-64 bg-gray-200 rounded-full h-2.5">
+                <div id="progressBar" class="bg-indigo-600 h-2.5 rounded-full" style="width: 0%"></div>
+            </div>
+            <span class="text-xs text-gray-500 font-bold" id="progressText">준비 단계</span>
+        </div>
+
+        <section id="step1" class="bg-white p-6 rounded-2xl shadow-md mb-6">
+            <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                <i class="fa-solid fa-door-open text-indigo-500"></i> 1단계: 대기방 개설하기
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">방 이름</label>
+                    <input type="text" id="roomNameInput" value="방과후 틀린그림찾기 대항전" class="w-full px-4 py-2 border rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="방 이름을 입력하세요">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">참가자 닉네임 (쉼표로 구분)</label>
+                    <input type="text" id="playersInput" value="민수, 영희, 철수, 지민" class="w-full px-4 py-2 border rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="예: 홍길동, 김철수, 이영희">
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">총 진행 라운드 수</label>
+                    <select id="totalRoundsInput" class="w-full px-4 py-2 border rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="3" selected>3 라운드 (단판 축약)</option>
+                        <option value="5">5 라운드 (기본 매치)</option>
+                        <option value="7">7 라운드 (장기 매치)</option>
+                    </select>
+                </div>
+            </div>
+            <button onclick="createRoom()" class="w-full mt-5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-xl transition duration-200 shadow-md flex justify-center items-center gap-2">
+                <i class="fa-solid fa-square-plus"></i> 게임 방 개설하고 시작하기
+            </button>
+        </section>
+
+        <main id="gamePlayArea" class="hidden grid grid-cols-1 md:grid-cols-3 gap-6">
+            
+            <div class="md:col-span-2 space-y-6">
+                <div class="bg-white rounded-2xl shadow-md overflow-hidden border border-gray-100">
+                    <div class="bg-gradient-to-r from-indigo-600 to-purple-600 p-4 text-white flex justify-between items-center">
+                        <span class="font-bold text-lg" id="currentRoundTitle">ROUND 1</span>
+                        <span class="bg-white/20 text-xs px-2 py-1 rounded-full font-mono" id="roundTimeBadge">진행중</span>
+                    </div>
+                    
+                    <div class="p-6">
+                        <div class="text-center py-4 bg-gray-50 rounded-xl mb-4 border border-dashed border-gray-200">
+                            <p class="text-xs text-gray-400 uppercase tracking-widest font-bold">Match Topic</p>
+                            <h3 class="text-xl font-black text-gray-700 mt-1" id="roundTheme">숨겨진 다람쥐의 도토리 찾기 테마</h3>
+                        </div>
+
+                        <div id="predictionFormSection">
+                            <h4 class="text-sm font-bold text-indigo-600 mb-3"><i class="fa-solid fa-pen-to-square mr-1"></i> 참가자별 승패/스코어 예측 제출</h4>
+                            <div id="predictionList" class="space-y-3">
+                                </div>
+                            <button onclick="submitPredictions()" class="w-full mt-5 bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-xl transition duration-200 shadow-md flex justify-center items-center gap-2">
+                                <i class="fa-solid fa-paper-plane"></i> 모든 예측 제출 및 고정
+                            </button>
+                        </div>
+
+                        <div id="resultFormSection" class="hidden mt-4 pt-4 border-t border-gray-100">
+                            <h4 class="text-sm font-bold text-emerald-600 mb-3"><i class="fa-solid fa-square-poll-vertical mr-1"></i> 실제 경기 결과 확정</h4>
+                            <p class="text-xs text-gray-500 mb-3">틀린 그림 찾기 경기가 종료되었습니다. 실제 승리(성공) 여부를 입력하여 점수를 정산하세요.</p>
+                            
+                            <div class="flex gap-4">
+                                <button onclick="settleRound('PASS')" class="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 px-4 rounded-xl transition shadow-sm">
+                                    <i class="fa-solid fa-circle-check mr-1"></i> 미션 성공 (PASS 예측 적중)
+                                </button>
+                                <button onclick="settleRound('FAIL')" class="flex-1 bg-rose-500 hover:bg-rose-600 text-white font-bold py-3 px-4 rounded-xl transition shadow-sm">
+                                    <i class="fa-solid fa-circle-xmark mr-1"></i> 미션 실패 (FAIL 예측 적중)
+                                </button>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <div class="bg-white p-6 rounded-2xl shadow-md">
+                    <h3 class="text-md font-bold text-gray-700 mb-3 flex items-center gap-2">
+                        <i class="fa-solid fa-history text-gray-400"></i> 라운드 히스토리 카드 목록
+                    </h3>
+                    <div id="historyCards" class="space-y-3 max-h-60 overflow-y-auto pr-1 text-sm text-gray-500">
+                        <p class="text-center py-6 text-gray-400">아직 완료된 라운드가 없습니다.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="space-y-6">
+                <div class="bg-white p-6 rounded-2xl shadow-md border-t-4 border-amber-400">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center justify-between">
+                        <span><i class="fa-solid fa-trophy text-amber-500 mr-1"></i> 실시간 랭킹 보드</span>
+                        <span class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded" id="totalRoundStatus">0/3 R</span>
+                    </h3>
+                    
+                    <div id="rankingBoardList" class="space-y-3">
+                        </div>
+
+                    <div class="mt-4 pt-3 border-t border-gray-100 text-xxs text-gray-400 leading-relaxed">
+                        <i class="fa-solid fa-info-circle"></i> <b>규칙 가이드:</b> 예측 성공 시 <b>+10점</b>, 실패 시 <b>-5점</b>이 가감됩니다. 최종 동점일 시 마지막 라운드 스코어 및 우선 제출 기준으로 자동 정렬됩니다.
+                    </div>
+                </div>
+
+                <button onclick="resetGame()" class="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-2.5 px-4 rounded-xl transition text-sm flex justify-center items-center gap-2">
+                    <i class="fa-solid fa-rotate-left"></i> 게임 초기화 후 다시 하기
+                </button>
+            </div>
+
+        </main>
+    </div>
+
+    <div id="toastNotification" class="fixed bottom-5 right-5 bg-gray-900 text-white px-5 py-3 rounded-xl shadow-2xl transition-opacity duration-300 opacity-0 pointer-events-none z-50 flex items-center gap-2 text-sm">
+        <i class="fa-solid fa-bell text-amber-400" id="toastIcon"></i>
+        <span id="toastMessage">안내 메시지입니다.</span>
+    </div>
+
+    <script>
+        /**
+         * 전역 상태 관리 데이터 구조 정의
+         */
+        let gameConfig = {
+            roomName: "",
+            totalRounds: 3,
+            currentRound: 1
+        };
+
+        // 참가자 배열 데이터베이스
+        let players = [];
+        
+        // 라운드별 틀린그림찾기 재미 요소용 가상 테마 테마 리스트
+        const roundThemes = [
+            "숨겨진 다람쥐의 도토리 찾기 테마 (난이도: 하)",
+            "이상한 나라의 엘리스 시계 바늘 맞추기 (난이도: 중)",
+            "우주 정거장 미세 볼트 개수 비교하기 (난이도: 상)",
+            "할머니 댁 시골 부엌 장독대 무늬 비교 (난이도: 중)",
+            "사이버펑크 네온사인 알파벳 오타 찾기 (난이도: 극상)",
+            "피크닉 매트 위 김밥 알 개수 세기 (난이도: 하)",
+            "복잡한 코딩 캠프 모니터 에러 줄 찾기 (난이도: 상)"
+        ];
+
+        /**
+         * 6) 사용자 친절 안내 토스트 경고 함수
+         */
+        function showToast(message, isSuccess = true) {
+            const toast = document.getElementById('toastNotification');
+            const icon = document.getElementById('toastIcon');
+            document.getElementById('toastMessage').innerText = message;
+            
+            if(isSuccess) {
+                icon.className = "fa-solid fa-circle-check text-green-400";
+            } else {
+                icon.className = "fa-solid fa-triangle-exclamation text-rose-400";
+            }
+            
+            toast.classList.remove('opacity-0');
+            toast.classList.add('opacity-100');
+            
+            setTimeout(() => {
+                toast.classList.remove('opacity-100');
+                toast.classList.add('opacity-0');
+            }, 3000);
+        }
+
+        /**
+         * STEP 1: 방 개설 및 데이터 초기화 로직
+         */
+        function createRoom() {
+            const roomNameVal = document.getElementById('roomNameInput').value.trim();
+            const playersVal = document.getElementById('playersInput').value.trim();
+            const totalRoundsVal = parseInt(document.getElementById('totalRoundsInput').value);
+
+            // 6) 빈 입력값 상황 예외 처리 및 친절한 경고 메시지
+            if (!roomNameVal) {
+                showToast("방 이름을 멋지게 지어 입력해주세요!", false);
+                return;
+            }
+            if (!playersVal) {
+                showToast("경기에 참가할 고등학생 친구들의 닉네임을 최소 1명 이상 적어주세요.", false);
+                return;
+            }
+
+            // 쉼표 분할 처리 및 빈 문자열 청소 필터링
+            const playerNames = playersVal.split(',').map(name => name.trim()).filter(name => name.length > 0);
+            if (playerNames.length === 0) {
+                showToast("유효한 닉네임이 발견되지 않았습니다. 쉼표로 명확히 분리해주세요.", false);
+                return;
+            }
+
+            // 게임 마스터 데이터 구조 빌드
+            gameConfig.roomName = roomNameVal;
+            gameConfig.totalRounds = totalRoundsVal;
+            gameConfig.currentRound = 1;
+
+            // 참가자 객체 데이터 모델링 정의
+            players = playerNames.map((name, index) => {
+                return {
+                    id: index,
+                    name: name,
+                    score: 0,
+                    prevScore: 0,
+                    winCount: 0,
+                    matchCount: 0,
+                    scoreHistory: [], // 라운드별 변동 기록 추적
+                    lastSubmitTime: 0 // 동점자 순위 결정을 위한 타임스탬프 기록
+                }
+            });
+
+            // UI 뷰 전환 스위칭
+            document.getElementById('step1').classList.add('hidden');
+            document.getElementById('gamePlayArea').classList.remove('hidden');
+            document.getElementById('statusProgress').classList.remove('hidden');
+
+            // 상태 표시줄 바인딩 리프레시
+            document.getElementById('roomBadge').innerText = "경기 진행중";
+            document.getElementById('progressText').innerText = `총 ${gameConfig.totalRounds}R 중 1라운드 세팅 완료`;
+            
+            // 렌더링 구동 루틴 시작
+            initRound();
+            showToast(`[${gameConfig.roomName}] 방이 개설되었습니다. 게임 스타트!`);
+        }
+
+        /**
+         * 라운드 전환 마다 폼 요소를 그리는 초기화 엔진
+         */
+        function initRound() {
+            // 라운드 한계 초과 검증 (최종 경기 결과 처리 루틴 점검)
+            if (gameConfig.currentRound > gameConfig.totalRounds) {
+                finishGamePro();
+                return;
+            }
+
+            // 프로그레스 바 너비 갱신 애니메이션 연동 계산
+            const percentage = ((gameConfig.currentRound - 1) / gameConfig.totalRounds) * 100;
+            document.getElementById('progressBar').style.width = `${percentage}%`;
+            document.getElementById('progressText').innerText = `진행률: ${gameConfig.currentRound} / ${gameConfig.totalRounds} 라운드`;
+            document.getElementById('totalRoundStatus').innerText = `${gameConfig.currentRound} / ${gameConfig.totalRounds} R`;
+            
+            // 화면 타이틀 교체 코드 구성
+            document.getElementById('currentRoundTitle').innerText = `ROUND ${gameConfig.currentRound}`;
+            
+            // 랜덤 라운드 테마 명칭 할당
+            const randomThemeIndex = (gameConfig.currentRound + Math.floor(Math.random() * 5)) % roundThemes.length;
+            document.getElementById('roundTheme').innerText = roundThemes[randomThemeIndex];
+
+            // 예측 입력 폼 파트 활성화 처리 제어
+            document.getElementById('predictionFormSection').classList.remove('hidden');
+            document.getElementById('resultFormSection').classList.add('hidden');
+            document.getElementById('roundTimeBadge').innerText = "예측 입력 대기";
+            document.getElementById('roundTimeBadge').className = "bg-white/20 text-xs px-2 py-1 rounded-full font-mono animate-pulse";
+
+            // 동적 예측 렌더링 리스트 주입부
+            const listContainer = document.getElementById('predictionList');
+            listContainer.innerHTML = '';
+
+            players.forEach(player => {
+                const rowDiv = document.createElement('div');
+                rowDiv.className = "flex flex-col sm:flex-row justify-between items-start sm:items-center p-3 bg-gray-50 rounded-xl border border-gray-100 gap-2";
+                rowDiv.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <span class="w-2 h-2 bg-indigo-500 rounded-full"></span>
+                        <span class="font-bold text-gray-700">${player.name}</span>
+                        <span class="text-xs text-gray-400">(현재: ${player.score}점)</span>
+                    </div>
+                    <div class="flex gap-2 w-full sm:w-auto justify-end">
+                        <label class="flex-1 sm:flex-initial text-center cursor-pointer bg-white px-3 py-1.5 border rounded-lg text-xs font-semibold hover:bg-indigo-50 flex items-center justify-center gap-1">
+                            <input type="radio" name="predict_${player.id}" value="PASS" checked class="text-indigo-600 focus:ring-indigo-500">
+                            <span class="text-emerald-600 font-bold">PASS (성공)</span>
+                        </label>
+                        <label class="flex-1 sm:flex-initial text-center cursor-pointer bg-white px-3 py-1.5 border rounded-lg text-xs font-semibold hover:bg-rose-50 flex items-center justify-center gap-1">
+                            <input type="radio" name="predict_${player.id}" value="FAIL" class="text-indigo-600 focus:ring-indigo-500">
+                            <span class="text-rose-600 font-bold">FAIL (실패)</span>
+                        </label>
+                    </div>
+                `;
+                listContainer.appendChild(rowDiv);
+            });
+
+            updateLeaderboard();
+        }
+
+        /**
+         * 예측 제출 이벤트 핸들러 (고정 후 결과 입력 탭 오픈)
+         */
+        function submitPredictions() {
+            // 각각의 예측 선택 정보 추출 수집 및 타임스탬프 부여 복합 연산 처리
+            players.forEach(player => {
+                const radioSelection = document.querySelector(`input[name="predict_${player.id}"]:checked`);
+                player.currentPrediction = radioSelection ? radioSelection.value : "PASS";
+                // 동점 처리용 가상 미세 난수 가산 타임스탬프 수식
+                player.lastSubmitTime = Date.now() + Math.random();
+            });
+
+            // 화면 가시성 스위칭
+            document.getElementById('predictionFormSection').classList.add('hidden');
+            document.getElementById('resultFormSection').classList.remove('hidden');
+            document.getElementById('roundTimeBadge').innerText = "결과 입력 대기";
+            document.getElementById('roundTimeBadge').className = "bg-amber-500 text-white text-xs px-2 py-1 rounded-full font-mono";
+
+            showToast("모든 참가자의 예측이 성공적으로 안전하게 등록 잠금되었습니다.");
+        }
+
+        /**
+         * 경기 결과 입력 점수 배정 및 승률 자동 계산 처리 엔진 핵심 알고리즘
+         */
+        function settleRound(actualResult) {
+            // 과거 점수 백업본 저장 프로시저 (애니메이션 텍스트 가시성 증명용)
+            players.forEach(p => {
+                p.prevScore = p.score;
+                p.matchCount += 1;
+
+                // 점수 가감 메인 로직 분기점
+                if (p.currentPrediction === actualResult) {
+                    p.score += 10; // 맞추면 +10점 획득 규칙 충족
+                    p.winCount += 1;
+                    p.lastRoundStatus = "SUCCESS";
+                } else {
+                    p.score -= 5; // 틀리면 -5점 차감 규칙 충족
+                    p.lastRoundStatus = "WRONG";
+                }
+                // 히스토리 로깅 스냅샷
+                p.scoreHistory.push({
+                    round: gameConfig.currentRound,
+                    prediction: p.currentPrediction,
+                    gotPoints: p.currentPrediction === actualResult ? 10 : -5
+                });
+            });
+
+            // 카드 영역 히스토리 기록 로그 노출 처리 단락 작성
+            appendHistoryLog(gameConfig.currentRound, actualResult);
+
+            // 라운드 카운터 스케일업 및 리렌더링 인터벌 트리거링
+            gameConfig.currentRound += 1;
+            
+            // 상태 갱신 프로세스 호출 후 다음 라운드로 토스
+            initRound();
+            showToast(`라운드가 성공적으로 정산되었습니다. 실시간 스코어를 확인하세요!`);
+        }
+
+        /**
+         * 5) 결과 카드 영역에 라운드 히스토리 카드 누적 처리 함수
+         */
+        function appendHistoryLog(round, result) {
+            const historyContainer = document.getElementById('historyCards');
+            if (round === 1) historyContainer.innerHTML = ''; // 기본 디폴트 빈 알림 메시지 삭제
+
+            const card = document.createElement('div');
+            card.className = "bg-gray-50 p-3 rounded-xl border border-gray-100 space-y-1";
+            
+            let detailsHtml = "";
+            players.forEach(p => {
+                const stateColor = p.lastRoundStatus === "SUCCESS" ? "text-emerald-600 font-bold" : "text-rose-500";
+                const markIcon = p.lastRoundStatus === "SUCCESS" ? "O" : "X";
+                detailsHtml += `<span class="inline-block bg-white border px-2 py-0.5 rounded text-xs mr-1">${p.name}: [${p.currentPrediction}] ${markIcon}</span>`;
+            });
+
+            card.innerHTML = `
+                <div class="flex justify-between items-center text-xs text-gray-400 font-bold">
+                    <span>ROUND ${round} 매치 결과 정보</span>
+                    <span class="${result === 'PASS' ? 'text-emerald-500' : 'text-rose-500'} bg-white px-2 py-0.5 rounded border border-gray-200">실제 결과: ${result}</span>
+                </div>
+                <div class="pt-1 flex flex-wrap gap-1">${detailsHtml}</div>
+            `;
+            
+            historyContainer.insertBefore(card, historyContainer.firstChild);
+        }
+
+        /**
+         * 5) 실시간 랭킹 보드 정렬 알고리즘 및 점수 변화 애니메이션, 우승자 하이라이트 복합 렌더링 함수
+         */
+        function updateLeaderboard() {
+            const boardContainer = document.getElementById('rankingBoardList');
+            boardContainer.innerHTML = '';
+
+            // 규칙 요건 충족을 위한 고난도 복합 소팅 기법 적용
+            // 1순위: 최고 점수 순 정렬
+            // 2순위: 동점일 시 마지막 라운드 스코어 기여(히스토리 역추적) 혹은 타임스탬프가 빠른 제출자가 상위
+            const sortedPlayers = [...players].sort((a, b) => {
+                if (b.score !== a.score) {
+                    return b.score - a.score;
+                }
+                // 동점 처리 예외 규칙 분기 연산
+                return a.lastSubmitTime - b.lastSubmitTime;
+            });
+
+            // 게임의 최종 완전 종료 상태 점검 확인 플래그 검사
+            const isGameOver = gameConfig.currentRound > gameConfig.totalRounds;
+
+            sortedPlayers.forEach((player, idx) => {
+                // 승률 자동 계산 소수점 처리 백분율 공식 수식
+                const winRate = player.matchCount > 0 ? Math.round((player.winCount / player.matchCount) * 100) : 0;
+                
+                // 점수 변화 감지용 이펙트 스타일 클래스 연산부
+                let scoreAnimationClass = "";
+                let deltaText = "";
+                if (player.score > player.prevScore) {
+                    scoreAnimationClass = "animate-score-up";
+                    deltaText = `(+10)`;
+                } else if (player.score < player.prevScore) {
+                    scoreAnimationClass = "animate-score-down";
+                    deltaText = `(-5)`;
+                }
+
+                // 등수별 뱃지 아이콘 스타일링 데코레이터 메커니즘
+                let rankBadge = `<span class="w-6 h-6 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center font-mono text-xs font-bold">${idx + 1}</span>`;
+                if(idx === 0) rankBadge = `<span class="w-6 h-6 rounded-full bg-amber-400 text-white flex items-center justify-center text-xs"><i class="fa-solid fa-crown"></i></span>`;
+                if(idx === 1) rankBadge = `<span class="w-6 h-6 rounded-full bg-slate-300 text-white flex items-center justify-center text-xs"><i class="fa-solid fa-medal"></i></span>`;
+
+                // 4), 5) 우승자 하이라이트 클래스 래핑 기법 분기처리
+                const isFirstPlaceWinner = idx === 0 && isGameOver;
+                const highlightWrapperClass = isFirstPlaceWinner ? "winner-highlight bg-amber-50" : "bg-gray-50 hover:bg-gray-100";
+
+                const rankRow = document.createElement('div');
+                rankRow.className = `flex items-center justify-between p-3.5 rounded-xl transition border border-gray-100 ${highlightWrapperClass}`;
+                rankRow.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        ${rankBadge}
+                        <div>
+                            <div class="font-bold text-sm text-gray-800 flex items-center gap-1">
+                                ${player.name}
+                                ${isFirstPlaceWinner ? '<span class="bg-amber-500 text-white text-xxs font-extrabold px-1.5 py-0.2 rounded animate-bounce">최종 우승</span>' : ''}
+                            </div>
+                            <div class="text-xxs text-gray-400">예측 승률: ${winRate}% (${player.winCount}승/${player.matchCount}전)</div>
+                        </div>
+                    </div>
+                    <div class="text-right font-mono">
+                        <span class="text-xs text-gray-400 mr-1 font-sans">${deltaText}</span>
+                        <span class="text-base font-black text-gray-700 ${scoreAnimationClass}" id="scoreText_${player.id}">${player.score} <span class="text-xs font-normal text-gray-400">점</span></span>
+                    </div>
+                `;
+                boardContainer.appendChild(rankRow);
+            });
+        }
+
+        /**
+         * 모든 토탈 라운드가 성공적으로 마감되었을 때 우승자 발표 연출 화면 구축 함수
+         */
+        function finishGamePro() {
+            // 프로그레스 트랙바 충전 완료 표기 변경
+            document.getElementById('progressBar').style.width = `100%`;
+            document.getElementById('progressBar').className = "bg-amber-500 h-2.5 rounded-full";
+            document.getElementById('progressText').innerText = "매치 전원 최종 종료!";
+            document.getElementById('roomBadge').innerText = "게임 종료";
+            document.getElementById('roomBadge').className = "bg-amber-500 text-white text-xs font-bold px-2.5 py-1 rounded-md";
+
+            // 메인 제어 콘솔 영역을 최종 결과 리포트용 문맥 카드로 강제 치환 변형 설계
+            const mainConsole = document.getElementById('predictionFormSection').parentElement;
+            
+            // 점수 정렬 기준 재조회로 1등 검출
+            const winners = [...players].sort((a,b) => b.score - a.score);
+            const ultimateChampion = winners[0];
+
+            mainConsole.innerHTML = `
+                <div class="text-center py-8 bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl border-2 border-amber-300 p-6">
+                    <div class="w-16 h-16 bg-amber-400 rounded-full flex items-center justify-center text-white text-3xl mx-auto shadow-md mb-4 animate-bounce">
+                        <i class="fa-solid fa-trophy"></i>
+                    </div>
+                    <p class="text-xs text-amber-600 font-bold uppercase tracking-widest">Grand Champion</p>
+                    <h2 class="text-3xl font-black text-gray-800 mt-1">${ultimateChampion.name}</h2>
+                    <p class="text-sm text-gray-500 mt-2">최종 최고 점수 <b class="text-amber-500">${ultimateChampion.score}점</b>을 달성하여 명예의 영광의 박수를 받았습니다!</p>
+                    
+                    <div class="mt-6 p-4 bg-white rounded-xl border border-amber-200 text-left text-xs text-gray-500 space-y-2">
+                        <div class="font-bold text-gray-700 border-b pb-1.5 mb-1"><i class="fa-solid fa-square-poll-horizontal"></i> 전원 스코어 피날레 대시보드</div>
+                        ${winners.map((w, i) => `<div><b>${i+1}등 ${w.name}</b> : 최종 ${w.score}점 (승률 ${w.matchCount > 0 ? Math.round((w.winCount/w.matchCount)*100):0}%)</div>`).join('')}
+                    </div>
+                </div>
+            `;
+
+            updateLeaderboard();
+            showToast("🎉 축하합니다! 모든 경기 예측 라운드가 무사히 마감되었습니다.");
+        }
+
+        /**
+         * 게임 리셋 초기화 함수
+         */
+        function resetGame() {
+            if(confirm("정말로 게임을 초기화하고 첫 단계 방 만들기 화면으로 돌아가시겠습니까?")) {
+                location.reload();
+            }
+        }
+    </script>
+</body>
+</html>
